@@ -72,5 +72,4 @@ markdown分支中只保存了必须的markdown文件。
 
 hexo只是用来生成html文件的工具,需要执行hexo init等
 
-
 github page的实时性不够好，push后有延迟
