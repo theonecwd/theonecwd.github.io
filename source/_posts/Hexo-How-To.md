@@ -56,17 +56,22 @@ $ hexo clean
 More info: [Deployment](https://hexo.io/docs/deployment.html)
 
 ### github.io使用说明
-github.io会从仓库默认分支来获取内容，主要是通过hexo生成并部署的html文件，
-所以如果默认分支没有这些内容，即不满足github.io的使用规则,则页面不会正常显示.
-通常我们希望有个干净地方，只保存我们的源文件、图片等信息，所以需要新创建一个分支，
-正常情况下，本地的环境只需要这个分支就够了，通过\_config.yaml中的配置来进行部署，新generate的
-html内容push到另外一个分支，该分支需要在github仓库上面设置为默认分支
+github.io会从仓库master分支来获取内容，这些内容是通过hexo生成的静态html文件，
+所以如果master分支没有这些内容，即不满足github.io的使用规则,则页面不会正常显示.
+通常我们希望有个干净地方，只保存我们的源文件、图片等信息，所以需要新创建一个分支(markdown分支)
+正常情况下，本地的环境只需要这个分支就够了，通过\_config.yaml中的配置来进行部署，
+\_config.yaml中需要配置远程分支的位置，当执行hexo g时会使用当前分支下的内容generate
+html文件hexo d时push到设置的远程分支，这个远程分支也只能是master。
 
-github会默认从master分支来获取内容来显示页面，所以在\_config.yaml 需要配置成远程的master
-但是需要一个分支来显示markdown文档，所以需要将本地master 推送到远程的markdown分支，以后若是要变更，需要
-markdown分支(我的远程markdown分支被我写成了blog分支)
+平时只需要在markdown分支操作就可以了，hexo g 和 hexo d都是针对当前分支进行操作，
+hexo的部署提交的commit在.deploy\_git目录中。并不会在当前分支生成commit记录(.git目录)。
+markdown分支中只保存了必须的markdown文件。
+为了保证markdown分支的安全，可以将该分支的remote设置成以private repo
+所以在local master分支可以执行git pull操作,local master的git log都是hexo deploy生成的。
 
-上面说的好像不对，貌似没有办法处理这个情况
-因为要把master 与 origin master同步，origin master会显示静态页面
+
+hexo只是用来生成html文件的工具,需要执行hexo init等
+
+
 
 
