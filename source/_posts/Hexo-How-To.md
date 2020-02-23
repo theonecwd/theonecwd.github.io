@@ -71,5 +71,9 @@ markdown分支中只保存了必须的markdown文件。
 
 
 hexo只是用来生成html文件的工具,需要执行hexo init等
+本地的仓库和部署的仓库可以一毛线关系都没有，github page只需要在hexo配置好远程的就可以了，
+本地仓库可以push到另一仓库托管
+
 
 github page的实时性不够好，push后有延迟
+
