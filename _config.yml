@@ -96,6 +96,13 @@ ignore:
 #theme: landscape
 theme: hexo-theme-next
 
+excerpt:
+  depth: 6
+  excerpt_excludes: []
+  more_excludes: []
+  hideWholePostExcerpts: false
+
+
 # Deployment
 ## Docs: https://hexo.io/docs/deployment.html
 deploy:
