@@ -13,6 +13,7 @@ So it can probe wherever kprobes can probe (this means,
 all functions except those with \_\_kprobes/nokprobe\_inline annotation and those marked NOKPROBE\_SYMBOL).
 Unlike the Tracepoint based event, this can be added and removed dynamically, on the fly.
 
+
 To enable this feature, build your kernel with CONFIG\_KPROBE\_EVENTS=y.
 
 Similar to the events tracer, this doesn’t need to be activated via current\_tracer. Instead of that,
@@ -136,6 +137,12 @@ For example, adding myprobe event on do\_sys\_open like below
     p:myprobe do_sys_open dfd=%ax filename=%dx flags=%cx mode=+4($stack)
 ```
 
+when specific parameter type
+```
+    p:myprobe do_sys_open dfd=%ax:u32 filename=%dx flags=%cx mode=+4($stack)
+```
+
+
 should be below for kernel boot parameter (just replace spaces with comma)
 
 ```
@@ -188,6 +195,7 @@ echo > /sys/kernel/debug/tracing/kprobe_events
 ```
 
 This clears all probe points.
+>> 这里需要注意的是如果要删除event，需要先disable
 
 Or,
 
@@ -202,6 +210,11 @@ Right after definition, each event is disabled by default. For tracing these eve
 ```
 echo 1 > /sys/kernel/debug/tracing/events/kprobes/myprobe/enable
 echo 1 > /sys/kernel/debug/tracing/events/kprobes/myretprobe/enable
+```
+when disable
+```
+echo 0 > /sys/kernel/debug/tracing/events/kprobes/myprobe/enable
+echo 0 > /sys/kernel/debug/tracing/events/kprobes/myretprobe/enable
 ```
 
 Use the following command to start tracing in an interval.

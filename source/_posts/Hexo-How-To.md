@@ -1,21 +1,26 @@
 ---
-title: Hexo HowTo
+title: Hexo How-To
 ---
+hexo是一款可以使用markdown来写博客的工具，方便部署，本文介绍如何使用hexo
 
-## Quick Start
+## init a hexo project
+```
+$ hexo init
+```
+<!--more-->
 
-### Create a new post
+## Create a new post
 
 ``` bash
 $ hexo new "My New Post"
 ```
 
-### Create tags
+## Create tags
 
 ``` bash
 $ hexo new page tags
 ```
-### Create categories
+## Create categories
 
 ``` bash
 $ hexo new page categories
@@ -23,7 +28,7 @@ $ hexo new page categories
 
 More info: [Writing](https://hexo.io/docs/writing.html)
 
-### Run server
+## Run server
 
 ``` bash
 $ hexo server
@@ -31,7 +36,7 @@ $ hexo server
 
 More info: [Server](https://hexo.io/docs/server.html)
 
-### Generate static files
+## Generate static files
 
 ``` bash
 $ hexo generate
@@ -39,7 +44,7 @@ $ hexo generate
 
 More info: [Generating](https://hexo.io/docs/generating.html)
 
-### Deploy to remote sites
+## Deploy to remote sites
 
 ``` bash
 $ hexo deploy
@@ -47,8 +52,7 @@ $ hexo deploy
 # hexo本身的工程文件,主要是md文件并不会提交到git仓库中
 ```
 
-
-### Clean hexo project
+## Clean hexo project
 ```
 $ hexo clean
 ```
