@@ -1,9 +1,17 @@
 ---
 layout: post
-title: ftrace kprobe
+title: Kprobe-based Event Tracing
 date: 2019-12-22 21:54:33
 tags: kernel debug
 ---
+
+> 本文会介绍, 基于kprobe的内核调试方法
+> 文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https://theonecwd.github.io/2019/12/22/ftrace-kprobe/#more
+
+内核提供了一些调试内核的工具，本文介绍其中的一种调试方法，该方法通过ftrace的借口提供kprobe功能，
+通常情况下使用kprobe需要编写ko，并插入到内核来实现。有了ftrace的一些接口后，可以使操作变得简单。
+本文来自内核文档，并在其基础上增加了一些内容，在下一篇文章中，将会举一些例子来进一步理解。
+
 ## Kprobe-based Event Tracing
 > Author:	Masami Hiramatsu
 

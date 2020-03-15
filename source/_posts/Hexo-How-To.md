@@ -1,6 +1,8 @@
 ---
 title: Hexo How-To
 ---
+> 本文会介绍, hexo的使用
+> 文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https://theonecwd.github.io/2020/03/15/Hexo-How-To/#more
 hexo是一款可以使用markdown来写博客的工具，方便部署，本文介绍如何使用hexo
 
 ## init a hexo project
