@@ -8,7 +8,7 @@ subtitle: ''
 description: ''
 keywords:
 author: The One
-language: en
+language: zh-CN
 timezone: ''
 
 # URL
@@ -109,3 +109,15 @@ deploy:
     type: git
     repo: git@github.com:theonecwd/theonecwd.github.io.git
     branch: master
+
+# 禁用github的 gfm格式的markdown文档,换行需要两个空格
+marked:
+  gfm: false
+  pedantic: false
+  sanitize: false
+  tables: true
+  breaks: false
+  smartLists: true
+  smartypants: true
+  modifyAnchors: ''
+  autolink: true
