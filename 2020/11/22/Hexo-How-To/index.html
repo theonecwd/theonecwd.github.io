@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文会介绍, hexo的使用 文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https:&#x2F;&#x2F;theonecwd.github.io&#x2F;2020&#x2F;03&#x2F;15&#x2F;Hexo-How-To&#x2F;#more  hexo是一款可以使用markdown来写博客的工具，方便部署，本文介绍如何使用hexo 安装包管理工具1apt install npm  init a hexo pr">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hexo How-To">
+<meta property="og:url" content="http://yoursite.com/2020/11/22/Hexo-How-To/index.html">
+<meta property="og:site_name" content="The One">
+<meta property="og:description" content="本文会介绍, hexo的使用 文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https:&#x2F;&#x2F;theonecwd.github.io&#x2F;2020&#x2F;03&#x2F;15&#x2F;Hexo-How-To&#x2F;#more  hexo是一款可以使用markdown来写博客的工具，方便部署，本文介绍如何使用hexo 安装包管理工具1apt install npm  init a hexo pr">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2020-11-22T09:07:54.758Z">
+<meta property="article:modified_time" content="2020-11-22T09:07:54.758Z">
+<meta property="article:author" content="The One">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2020/11/22/Hexo-How-To/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Hexo How-To | The One</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">The One</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/11/22/Hexo-How-To/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="The One">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="The One">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Hexo How-To
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-11-22 17:07:54" itemprop="dateCreated datePublished" datetime="2020-11-22T17:07:54+08:00">2020-11-22</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>本文会介绍, hexo的使用
+文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https://theonecwd.github.io/2020/03/15/Hexo-How-To/#more</p>
+</blockquote>
+<p>hexo是一款可以使用markdown来写博客的工具，方便部署，本文介绍如何使用hexo</p>
+<h2 id="安装包管理工具"><a href="#安装包管理工具" class="headerlink" title="安装包管理工具"></a>安装包管理工具</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">apt install npm</span><br></pre></td></tr></table></figure>
+
+<h2 id="init-a-hexo-project"><a href="#init-a-hexo-project" class="headerlink" title="init a hexo project"></a>init a hexo project</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo init</span><br></pre></td></tr></table></figure>
+<a id="more"></a>
+
+<h2 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="Create-tags"><a href="#Create-tags" class="headerlink" title="Create tags"></a>Create tags</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new page tags</span><br></pre></td></tr></table></figure>
+<h2 id="Create-categories"><a href="#Create-categories" class="headerlink" title="Create categories"></a>Create categories</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new page categories</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h2 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
+<h2 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h2 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br><span class="line"><span class="comment"># hexo会按照_config.yaml中的配置的仓库,将public目录下的内容自动提交到git仓库</span></span><br><span class="line"><span class="comment"># hexo本身的工程文件,主要是md文件并不会提交到git仓库中</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="Clean-hexo-project"><a href="#Clean-hexo-project" class="headerlink" title="Clean hexo project"></a>Clean hexo project</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo clean</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/deployment.html">Deployment</a></p>
+<h3 id="github-io使用说明"><a href="#github-io使用说明" class="headerlink" title="github.io使用说明"></a>github.io使用说明</h3><p>github.io会从仓库master分支来获取内容，这些内容是通过hexo生成的静态html文件，
+所以如果master分支没有这些内容，即不满足github.io的使用规则,则页面不会正常显示.
+通常我们希望有个干净地方，只保存我们的源文件、图片等信息，所以需要新创建一个分支(markdown分支)
+正常情况下，本地的环境只需要这个分支就够了，通过_config.yaml中的配置来进行部署，
+_config.yaml中需要配置远程分支的位置，当执行hexo g时会使用当前分支下的内容generate
+html文件hexo d时push到设置的远程分支，这个远程分支也只能是master。</p>
+<p>平时只需要在markdown分支操作就可以了，hexo g 和 hexo d都是针对当前分支进行操作，
+hexo的部署提交的commit在.deploy_git目录中。并不会在当前分支生成commit记录(.git目录)。
+markdown分支中只保存了必须的markdown文件。
+为了保证markdown分支的安全，可以将该分支的remote设置成以private repo
+所以在local master分支可以执行git pull操作,local master的git log都是hexo deploy生成的。</p>
+<p>hexo只是用来生成html文件的工具,需要执行hexo init等
+本地的仓库和部署的仓库可以一毛线关系都没有，github page只需要在hexo配置好远程的就可以了，
+本地仓库可以push到另一仓库托管</p>
+<p>github page的实时性不够好，push后有延迟</p>
+<h3 id="在一个新的环境上快速部署之前的工程"><a href="#在一个新的环境上快速部署之前的工程" class="headerlink" title="在一个新的环境上快速部署之前的工程"></a>在一个新的环境上快速部署之前的工程</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">git clone ...</span><br><span class="line">git submodule update --init --recursive &#x2F;&#x2F;之前将theme作为一个submodule加入到了工程里面,所以这里需要下载theme</span><br><span class="line">hexo install &#x2F;&#x2F; 安装node_module文件</span><br><span class="line">hexo g</span><br><span class="line">hexo s</span><br></pre></td></tr></table></figure>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/03/08/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%BA%8C/" rel="prev" title="线程局部变量(二)">
+      <i class="fa fa-chevron-left"></i> 线程局部变量(二)
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%AE%89%E8%A3%85%E5%8C%85%E7%AE%A1%E7%90%86%E5%B7%A5%E5%85%B7"><span class="nav-number">1.</span> <span class="nav-text">安装包管理工具</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#init-a-hexo-project"><span class="nav-number">2.</span> <span class="nav-text">init a hexo project</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Create-a-new-post"><span class="nav-number">3.</span> <span class="nav-text">Create a new post</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Create-tags"><span class="nav-number">4.</span> <span class="nav-text">Create tags</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Create-categories"><span class="nav-number">5.</span> <span class="nav-text">Create categories</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Run-server"><span class="nav-number">6.</span> <span class="nav-text">Run server</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Generate-static-files"><span class="nav-number">7.</span> <span class="nav-text">Generate static files</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Deploy-to-remote-sites"><span class="nav-number">8.</span> <span class="nav-text">Deploy to remote sites</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Clean-hexo-project"><span class="nav-number">9.</span> <span class="nav-text">Clean hexo project</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#github-io%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E"><span class="nav-number">9.1.</span> <span class="nav-text">github.io使用说明</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%9C%A8%E4%B8%80%E4%B8%AA%E6%96%B0%E7%9A%84%E7%8E%AF%E5%A2%83%E4%B8%8A%E5%BF%AB%E9%80%9F%E9%83%A8%E7%BD%B2%E4%B9%8B%E5%89%8D%E7%9A%84%E5%B7%A5%E7%A8%8B"><span class="nav-number">9.2.</span> <span class="nav-text">在一个新的环境上快速部署之前的工程</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">The One</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">The One</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

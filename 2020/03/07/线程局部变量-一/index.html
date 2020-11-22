@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文会介绍, POSIX库定义的TLS变量的实现.文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https:&#x2F;&#x2F;theonecwd.github.io&#x2F;2020&#x2F;03&#x2F;07&#x2F;%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%B8%80&#x2F;#more  介绍线程局部变量(Thread Local">
+<meta property="og:type" content="article">
+<meta property="og:title" content="线程局部变量(一)">
+<meta property="og:url" content="http://yoursite.com/2020/03/07/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%B8%80/index.html">
+<meta property="og:site_name" content="The One">
+<meta property="og:description" content="本文会介绍, POSIX库定义的TLS变量的实现.文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https:&#x2F;&#x2F;theonecwd.github.io&#x2F;2020&#x2F;03&#x2F;07&#x2F;%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%B8%80&#x2F;#more  介绍线程局部变量(Thread Local">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2020-03-07T02:49:44.000Z">
+<meta property="article:modified_time" content="2020-11-22T07:44:11.781Z">
+<meta property="article:author" content="The One">
+<meta property="article:tag" content="glibc kernel arm64">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2020/03/07/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%B8%80/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>线程局部变量(一) | The One</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">The One</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/03/07/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%B8%80/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="The One">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="The One">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          线程局部变量(一)
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-03-07 10:49:44" itemprop="dateCreated datePublished" datetime="2020-03-07T10:49:44+08:00">2020-03-07</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-11-22 15:44:11" itemprop="dateModified" datetime="2020-11-22T15:44:11+08:00">2020-11-22</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>本文会介绍, POSIX库定义的TLS变量的实现.<br>文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:<a target="_blank" rel="noopener" href="https://theonecwd.github.io/2020/03/07/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%B8%80/#more">https://theonecwd.github.io/2020/03/07/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%B8%80/#more</a></p>
+</blockquote>
+<h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>线程局部变量(Thread Local Storage, TLS)，顾名思义，变量是属于线程的，针对同一变量，不同的线程可以有不同的值.<br>TLS的使用方法有两种，一种是通过POSIX线程库，另外一种是通过__thread关键字的方式，<br>本文介绍POSIX线程库线程局部变量的使用和glibc实现.</p>
+<h2 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h2><p>下面是一个简单的使用示例，在主线程里面创建了两个线程，每一个线程通过pthread_setspecific设置了自己的pthread_key_t对应的value，<br>通过pthread_getspecific来获取线程变量的值.<br>主线程里面在创建线程1和线程2的时候sleep了3秒，保证两个线程不会并发访问全局变量key_val，其实这里应该用锁保证，<br>为了不被其他东西干扰，简单起见，这里使用sleep来演示验证.<br>通过下面的示例，可以发现同一个pthread_key_t代表的线程变量，在不同线程中有不同的值.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;pthread.h&gt;</span><br><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">pthread_key_t key;</span><br><span class="line">int key_val &#x3D; 5;</span><br><span class="line"></span><br><span class="line">void* thread(void* arg)</span><br><span class="line">&#123;</span><br><span class="line">	pthread_setspecific(key, (void *) key_val);</span><br><span class="line">	key_val++;</span><br><span class="line">	</span><br><span class="line">	printf(&quot;thread:%lu Thread Local Storage is %d\n&quot;, pthread_self(), (int)pthread_getspecific(key));</span><br><span class="line">&#125;</span><br><span class="line">int main()</span><br><span class="line">&#123;</span><br><span class="line">	pthread_t thid1;</span><br><span class="line">	pthread_t thid2;</span><br><span class="line"></span><br><span class="line">	pthread_key_create(&amp;key, NULL);</span><br><span class="line"></span><br><span class="line">	pthread_create(&amp;thid1, NULL, thread, NULL);</span><br><span class="line">        sleep(3);</span><br><span class="line">	pthread_create(&amp;thid2, NULL, thread, NULL);</span><br><span class="line"></span><br><span class="line">	pthread_join(thid1, NULL);</span><br><span class="line">	pthread_join(thid2, NULL);</span><br><span class="line"></span><br><span class="line">	pthread_key_delete(key);</span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h2 id="glibc实现"><a href="#glibc实现" class="headerlink" title="glibc实现"></a>glibc实现</h2><p>在glibc中为每个线程都分配了TLS空间,当通过pthread_key_t来访问TLS变量的时候,访问的是自己线程空间的值,<br>所以针对同一个TLS变量,每个线程的值都可以不一样.<br>下面通过glibc的pthread_key_create, pthread_setspecific, pthread_getspecific,pthread_key_delete来具体分析TLS的实现,<br>TLS的实现是架构相关的, TLS实现中依赖一个架构相关的thread pointer register, 这里以aarch64为例来分析.</p>
+<ol>
+<li>pthread_key_create<br>pthread_key_create的实现在glibcnptl/pthread_key_create.c文件中,<br>具体实现很简单, PTHREAD_KEYS_MAX为1024, 通过循环来查找第一个未使用的key.<br>key在范围在0 ~ 1024之间,也就是说最多有1024个TLS变量,将找到的key返回给调用者,<br>之后可以通过这个key来索引TLS变量的值.<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">int</span><br><span class="line">__pthread_key_create (pthread_key_t *key, void (*destr) (void *)) </span><br><span class="line">&#123;</span><br><span class="line">  &#x2F;* Find a slot in __pthread_keys which is unused.  *&#x2F;</span><br><span class="line">  for (size_t cnt &#x3D; 0; cnt &lt; PTHREAD_KEYS_MAX; ++cnt)</span><br><span class="line">    &#123;   </span><br><span class="line">      uintptr_t seq &#x3D; __pthread_keys[cnt].seq;</span><br><span class="line"></span><br><span class="line">      if (KEY_UNUSED (seq) &amp;&amp; KEY_USABLE (seq)</span><br><span class="line">          &#x2F;* We found an unused slot.  Try to allocate it.  *&#x2F;</span><br><span class="line">          &amp;&amp; ! atomic_compare_and_exchange_bool_acq (&amp;__pthread_keys[cnt].seq,</span><br><span class="line">                                                     seq + 1, seq))</span><br><span class="line">        &#123;</span><br><span class="line">          &#x2F;* Remember the destructor.  *&#x2F;</span><br><span class="line">          __pthread_keys[cnt].destr &#x3D; destr;</span><br><span class="line"></span><br><span class="line">          &#x2F;* Return the key to the caller.  *&#x2F;</span><br><span class="line">          *key &#x3D; cnt;</span><br><span class="line"></span><br><span class="line">          &#x2F;* The call succeeded.  *&#x2F;</span><br><span class="line">          return 0;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;   </span><br><span class="line"></span><br><span class="line">  return EAGAIN;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></li>
+<li>pthread_setspecific<br>pthread_setpecific的实现在nptl/pthread_setspecific.c文件中,在该函数中会先获取线程struct pthread的地址,<br>然后根据key设置当前线程该key对应的值,如果值所在的空间没有分配则先分配空间,分配的空间保存在struct pthread<br>的specific变量中, struct pthread使用一个32 * 32的二维数组保存key的所对应的值.</li>
+</ol>
+<p>第10行是一个架构相关的实现, THREAD_SELF宏中使用__builtin_thread_pointer来获取thread pointer的值,<br>并通过thread pointer获得了本线程struct pthread的地址.<br>thread pointer在aarch64中是保存在tpidr_el0寄存器中, 在EL0级别可以读写该寄存器,tpidr_el0中保存的不是struct pthread的地址,<br>而是tcbhead_t的地址,但是这两个地址是有关系的,如下所示,至于tcbhead_t是干什么用的,这个涉及到TLS变量的另一个用法,<br>通过关键字__thread定义的TLS变量保存在tcbhead_t区域中,<br>这个会有其他文章来介绍.POSIX线程库使用的TLS变量保存在struct pthread区域中.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">--------------------------------------</span><br><span class="line">|		     |	    	     |</span><br><span class="line">|   struct pthread   |   tcbhead_t   |</span><br><span class="line">|		     |	    	     |</span><br><span class="line">--------------------------------------</span><br></pre></td></tr></table></figure>
+
+<p>在介绍设置TLS值之前有必要先介绍下struct pthread中存储TLS变量的结构.<br>PTHREAD_KEY_2NDLEVEL_SIZE的值是32,线程局部变量保存在一个32 * 32 = 1024的二维数组里,<br>在struct pthread结构中specific表示这个二维数组.<br>specific数组的打小是32, specific的每一个成员是一个指针,这个指针指向了32个struct pthread_key_data变量.<br>在struct pthread结构分配的时候会默认分配32个TLS变量,<br>这32个TLS变量保存在specific_1stblock中,specific_1stblock占据了specific数组中第0个位置,<br>具体实现在pthread_create代码中,读者可自行分析.</p>
+<p>介绍了这些之后, 14到65行的代码的目的就呼之欲出了.<br>如果key &lt; 32,则TLS空间在分配struct pthread的时候已经默认分配了,直接设置TLS变量的值.<br>如果key &gt;=32,则需要确定该TLS变量所在的行和列,如果没有分配空间则先分配空间,如果已经分配空间则直接设置.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br></pre></td><td class="code"><pre><span class="line">int</span><br><span class="line">__pthread_setspecific (pthread_key_t key, const void *value)</span><br><span class="line">&#123;</span><br><span class="line">  struct pthread *self;</span><br><span class="line">  unsigned int idx1st;</span><br><span class="line">  unsigned int idx2nd;</span><br><span class="line">  struct pthread_key_data *level2;</span><br><span class="line">  unsigned int seq;</span><br><span class="line"></span><br><span class="line">  self &#x3D; THREAD_SELF;</span><br><span class="line"></span><br><span class="line">  &#x2F;* Special case access to the first 2nd-level block.  This is the</span><br><span class="line">     usual case.  *&#x2F;</span><br><span class="line">  if (__glibc_likely (key &lt; PTHREAD_KEY_2NDLEVEL_SIZE))</span><br><span class="line">    &#123;</span><br><span class="line">      &#x2F;* Verify the key is sane.  *&#x2F;</span><br><span class="line">      if (KEY_UNUSED ((seq &#x3D; __pthread_keys[key].seq)))</span><br><span class="line">	&#x2F;* Not valid.  *&#x2F;</span><br><span class="line">	return EINVAL;</span><br><span class="line"></span><br><span class="line">      level2 &#x3D; &amp;self-&gt;specific_1stblock[key];</span><br><span class="line"></span><br><span class="line">      &#x2F;* Remember that we stored at least one set of data.  *&#x2F;</span><br><span class="line">      if (value !&#x3D; NULL)</span><br><span class="line">	THREAD_SETMEM (self, specific_used, true);</span><br><span class="line">    &#125;</span><br><span class="line">  else</span><br><span class="line">    &#123;</span><br><span class="line">      if (key &gt;&#x3D; PTHREAD_KEYS_MAX</span><br><span class="line">	  || KEY_UNUSED ((seq &#x3D; __pthread_keys[key].seq)))</span><br><span class="line">	&#x2F;* Not valid.  *&#x2F;</span><br><span class="line">	return EINVAL;</span><br><span class="line"></span><br><span class="line">      idx1st &#x3D; key &#x2F; PTHREAD_KEY_2NDLEVEL_SIZE;</span><br><span class="line">      idx2nd &#x3D; key % PTHREAD_KEY_2NDLEVEL_SIZE;</span><br><span class="line"></span><br><span class="line">      &#x2F;* This is the second level array.  Allocate it if necessary.  *&#x2F;</span><br><span class="line">      level2 &#x3D; THREAD_GETMEM_NC (self, specific, idx1st);</span><br><span class="line">      if (level2 &#x3D;&#x3D; NULL)</span><br><span class="line">	&#123;</span><br><span class="line">	  if (value &#x3D;&#x3D; NULL)</span><br><span class="line">	    &#x2F;* We don&#39;t have to do anything.  The value would in any case</span><br><span class="line">	       be NULL.  We can save the memory allocation.  *&#x2F;</span><br><span class="line">	    return 0;</span><br><span class="line"></span><br><span class="line">	  level2</span><br><span class="line">	    &#x3D; (struct pthread_key_data *) calloc (PTHREAD_KEY_2NDLEVEL_SIZE,</span><br><span class="line">						  sizeof (*level2));</span><br><span class="line">	  if (level2 &#x3D;&#x3D; NULL)</span><br><span class="line">	    return ENOMEM;</span><br><span class="line"></span><br><span class="line">	  THREAD_SETMEM_NC (self, specific, idx1st, level2);</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">      &#x2F;* Pointer to the right array element.  *&#x2F;</span><br><span class="line">      level2 &#x3D; &amp;level2[idx2nd];</span><br><span class="line"></span><br><span class="line">      &#x2F;* Remember that we stored at least one set of data.  *&#x2F;</span><br><span class="line">      THREAD_SETMEM (self, specific_used, true);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#x2F;* Store the data and the sequence number so that we can recognize</span><br><span class="line">     stale data.  *&#x2F;</span><br><span class="line">  level2-&gt;seq &#x3D; seq;</span><br><span class="line">  level2-&gt;data &#x3D; (void *) value;</span><br><span class="line"></span><br><span class="line">  return 0;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"># define THREAD_SELF \</span><br><span class="line">((struct pthread *)__builtin_thread_pointer () - 1)</span><br><span class="line"></span><br><span class="line">struct pthread &#123;</span><br><span class="line">	......</span><br><span class="line">	struct pthread_key_data</span><br><span class="line">	&#123;</span><br><span class="line">	  &#x2F;* Sequence number.  We use uintptr_t to not require padding on</span><br><span class="line">	     32- and 64-bit machines.  On 64-bit machines it helps to avoid</span><br><span class="line">	     wrapping, too.  *&#x2F;</span><br><span class="line">	  uintptr_t seq;</span><br><span class="line">	</span><br><span class="line">	  &#x2F;* Data pointer.  *&#x2F;</span><br><span class="line">	  void *data;</span><br><span class="line">	&#125; specific_1stblock[PTHREAD_KEY_2NDLEVEL_SIZE];</span><br><span class="line">	</span><br><span class="line">	&#x2F;* Two-level array for the thread-specific data.  *&#x2F;</span><br><span class="line">	struct pthread_key_data *specific[PTHREAD_KEY_1STLEVEL_SIZE];</span><br><span class="line">	</span><br><span class="line">	&#x2F;* Flag which is set when specific data is set.  *&#x2F;</span><br><span class="line">	bool specific_used;</span><br><span class="line">	......</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<ol start="3">
+<li>pthread_getspecific<br>获取TLS变量的代码和设置TLS变量代码类似,这里就不再分析了,pthread_getspecific的实现在nptl/pthread_getspecific.c中.<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">void *</span><br><span class="line">__pthread_getspecific (pthread_key_t key)</span><br><span class="line">&#123;</span><br><span class="line">  struct pthread_key_data *data;</span><br><span class="line"></span><br><span class="line">  &#x2F;* Special case access to the first 2nd-level block.  This is the</span><br><span class="line">     usual case.  *&#x2F;</span><br><span class="line">  if (__glibc_likely (key &lt; PTHREAD_KEY_2NDLEVEL_SIZE))</span><br><span class="line">    data &#x3D; &amp;THREAD_SELF-&gt;specific_1stblock[key];</span><br><span class="line">  else</span><br><span class="line">    &#123;</span><br><span class="line">      &#x2F;* Verify the key is sane.  *&#x2F;</span><br><span class="line">      if (key &gt;&#x3D; PTHREAD_KEYS_MAX)</span><br><span class="line">	&#x2F;* Not valid.  *&#x2F;</span><br><span class="line">	return NULL;</span><br><span class="line"></span><br><span class="line">      unsigned int idx1st &#x3D; key &#x2F; PTHREAD_KEY_2NDLEVEL_SIZE;</span><br><span class="line">      unsigned int idx2nd &#x3D; key % PTHREAD_KEY_2NDLEVEL_SIZE;</span><br><span class="line"></span><br><span class="line">      &#x2F;* If the sequence number doesn&#39;t match or the key cannot be defined</span><br><span class="line">	 for this thread since the second level array is not allocated</span><br><span class="line">	 return NULL, too.  *&#x2F;</span><br><span class="line">      struct pthread_key_data *level2 &#x3D; THREAD_GETMEM_NC (THREAD_SELF,</span><br><span class="line">							  specific, idx1st);</span><br><span class="line">      if (level2 &#x3D;&#x3D; NULL)</span><br><span class="line">	&#x2F;* Not allocated, therefore no data.  *&#x2F;</span><br><span class="line">	return NULL;</span><br><span class="line"></span><br><span class="line">      &#x2F;* There is data.  *&#x2F;</span><br><span class="line">      data &#x3D; &amp;level2[idx2nd];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  void *result &#x3D; data-&gt;data;</span><br><span class="line">  if (result !&#x3D; NULL)</span><br><span class="line">    &#123;</span><br><span class="line">      uintptr_t seq &#x3D; data-&gt;seq;</span><br><span class="line"></span><br><span class="line">      if (__glibc_unlikely (seq !&#x3D; __pthread_keys[key].seq))</span><br><span class="line">	result &#x3D; data-&gt;data &#x3D; NULL;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  return result;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure></li>
+<li>pthread_key_delete<br>pthread_key_delete的实现是pthread_key_create实现的反过程,逻辑比较简单,这里也不再具体分析.<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">int</span><br><span class="line">__pthread_key_delete (pthread_key_t key)</span><br><span class="line">&#123;</span><br><span class="line">  int result &#x3D; EINVAL;</span><br><span class="line"></span><br><span class="line">  if (__glibc_likely (key &lt; PTHREAD_KEYS_MAX))</span><br><span class="line">    &#123;</span><br><span class="line">      unsigned int seq &#x3D; __pthread_keys[key].seq;</span><br><span class="line"></span><br><span class="line">      if (__builtin_expect (! KEY_UNUSED (seq), 1)</span><br><span class="line">	  &amp;&amp; ! atomic_compare_and_exchange_bool_acq (&amp;__pthread_keys[key].seq,</span><br><span class="line">						     seq + 1, seq))</span><br><span class="line">	&#x2F;* We deleted a valid key.  *&#x2F;</span><br><span class="line">	result &#x3D; 0;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  return result;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/glibc-kernel-arm64/" rel="tag"># glibc kernel arm64</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/12/22/ftrace-kprobe/" rel="prev" title="Kprobe-based Event Tracing">
+      <i class="fa fa-chevron-left"></i> Kprobe-based Event Tracing
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/03/08/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%BA%8C/" rel="next" title="线程局部变量(二)">
+      线程局部变量(二) <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%8B%E7%BB%8D"><span class="nav-number">1.</span> <span class="nav-text">介绍</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8"><span class="nav-number">2.</span> <span class="nav-text">使用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#glibc%E5%AE%9E%E7%8E%B0"><span class="nav-number">3.</span> <span class="nav-text">glibc实现</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">The One</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">The One</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

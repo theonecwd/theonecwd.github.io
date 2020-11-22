@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文会介绍,关键字__thread定义的TLS变量的实现.   文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https:&#x2F;&#x2F;theonecwd.github.io&#x2F;2020&#x2F;03&#x2F;08&#x2F;%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%BA%8C&#x2F;#more  介绍在前一篇文章中,线程局部">
+<meta property="og:type" content="article">
+<meta property="og:title" content="线程局部变量(二)">
+<meta property="og:url" content="http://yoursite.com/2020/03/08/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%BA%8C/index.html">
+<meta property="og:site_name" content="The One">
+<meta property="og:description" content="本文会介绍,关键字__thread定义的TLS变量的实现.   文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https:&#x2F;&#x2F;theonecwd.github.io&#x2F;2020&#x2F;03&#x2F;08&#x2F;%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%BA%8C&#x2F;#more  介绍在前一篇文章中,线程局部">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2020-03-08T03:34:40.000Z">
+<meta property="article:modified_time" content="2020-11-22T07:44:11.781Z">
+<meta property="article:author" content="The One">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2020/03/08/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%BA%8C/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>线程局部变量(二) | The One</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">The One</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/03/08/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%BA%8C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="The One">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="The One">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          线程局部变量(二)
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2020-03-08 11:34:40" itemprop="dateCreated datePublished" datetime="2020-03-08T11:34:40+08:00">2020-03-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-11-22 15:44:11" itemprop="dateModified" datetime="2020-11-22T15:44:11+08:00">2020-11-22</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>本文会介绍,关键字__thread定义的TLS变量的实现.</p>
+</blockquote>
+<blockquote>
+<p>文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:<br><a target="_blank" rel="noopener" href="https://theonecwd.github.io/2020/03/08/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%BA%8C/#more">https://theonecwd.github.io/2020/03/08/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%BA%8C/#more</a></p>
+</blockquote>
+<h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>在前一篇文章中,<br><a target="_blank" rel="noopener" href="https://theonecwd.github.io/2020/03/07/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%B8%80/#more">线程局部变量(一)</a><br>分析了基于POSIX线程库的线程局部变量(TLS)的实现,本文介绍基于关键字__thread的TLS的实现.<br>TLS变量的实现依赖于glibc,内核,编译器, 本文重点关注内核在TLS中的作用.</p>
+<h2 id="用户态使用"><a href="#用户态使用" class="headerlink" title="用户态使用"></a>用户态使用</h2><p>下面是一个简单的用户态代码示例,通过关键字__thread定义了一个线程局部变量,<br>在线程1和线程2中分别对该值赋值,并打印该值.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">#include &lt;pthread.h&gt;</span><br><span class="line"></span><br><span class="line">__thread int tls_val &#x3D; 3;</span><br><span class="line"></span><br><span class="line">void* thread(void* arg)</span><br><span class="line">&#123;</span><br><span class="line">        tls_val +&#x3D; *(int *)arg;</span><br><span class="line">        while (1) &#123;</span><br><span class="line">		printf(&quot;thread:%lu Thread Local Storage is %d\n&quot;, pthread_self(), tls_val);</span><br><span class="line">                sleep(2)</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        return NULL;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">int main()</span><br><span class="line">&#123;</span><br><span class="line">	pthread_t thid1;</span><br><span class="line">	pthread_t thid2;</span><br><span class="line"></span><br><span class="line">        int pthread_1_val &#x3D; 1;</span><br><span class="line">        int pthread_2_val &#x3D; 2;</span><br><span class="line"></span><br><span class="line">	pthread_create(&amp;thid1, NULL, thread, (void *)&amp;pthread_1_val);</span><br><span class="line">	pthread_create(&amp;thid2, NULL, thread, (void *)&amp;pthread_2_val);</span><br><span class="line"></span><br><span class="line">	pthread_join(thid1, NULL);</span><br><span class="line">	pthread_join(thid2, NULL);</span><br><span class="line"></span><br><span class="line">	return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="代码分析"><a href="#代码分析" class="headerlink" title="代码分析"></a>代码分析</h2><p>TLS的实现依赖架构相关的寄存器,即thread pointer register,每个线程都有自己的TLS空间,<br>thread pointer register中直接或间接存储TLS空间的信息.在访问TLS变量的时候,<br>依赖thread pointer register,这里就涉及到对thread pointer register的赋值保存等.</p>
+<blockquote>
+<p>不同架构TLS空间有不同的内存布局,但是不变的是,thread pointer register中的值都与TLS地址空间相关.</p>
+</blockquote>
+<h3 id="主线程thread-pointer寄存器的赋值"><a href="#主线程thread-pointer寄存器的赋值" class="headerlink" title="主线程thread pointer寄存器的赋值"></a>主线程thread pointer寄存器的赋值</h3><p>Linux的可执行文件在启动过程中,会进行一系列的初始化<br>在初始化的过程中都会给主线程分配TLS空间,并给架构相关的thread pointer register赋值.<br>在aarch64下,tpidr_el0就是所对应的thread pointer register,TLS_INIT_TP宏给tpidr_el0寄存器赋值.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># define TLS_INIT_TP(tcbp) \</span><br><span class="line">  (&#123; __asm __volatile (&quot;msr tpidr_el0, %0&quot; : : &quot;r&quot; (tcbp)); NULL; &#125;)</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>这里所说的TLS的空间,在aarch64中,在源码中是与结构tcbhead_t对应的,tcbhead_t是用来管理各个模块的TLS变量</p>
+</blockquote>
+<h3 id="创建新线程"><a href="#创建新线程" class="headerlink" title="创建新线程"></a>创建新线程</h3><p>在调用pthread_create的时候也会为创建的线程分配TLS空间,分配的TLS空间作为clone的参数传递到内核,保存到内核<br>task_struct的thread.uw.tp_value中, 在clone系统调用中第5个参数就是TLS空间<br>调用</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">SYSCALL_DEFINE5(clone, unsigned long, clone_flags, unsigned long, newsp,</span><br><span class="line">                 int __user *, parent_tidptr,</span><br><span class="line">                 int __user *, child_tidptr,</span><br><span class="line">                 unsigned long, tls)</span><br><span class="line">#endif</span><br><span class="line">&#123;</span><br><span class="line">        struct kernel_clone_args args &#x3D; &#123;</span><br><span class="line">                .flags          &#x3D; (clone_flags &amp; ~CSIGNAL),</span><br><span class="line">                .pidfd          &#x3D; parent_tidptr,</span><br><span class="line">                .child_tid      &#x3D; child_tidptr,</span><br><span class="line">                .parent_tid     &#x3D; parent_tidptr,</span><br><span class="line">                .exit_signal    &#x3D; (clone_flags &amp; CSIGNAL),</span><br><span class="line">                .stack          &#x3D; newsp,</span><br><span class="line">                .tls            &#x3D; tls,</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        if (!legacy_clone_args_valid(&amp;args))</span><br><span class="line">                return -EINVAL;</span><br><span class="line"></span><br><span class="line">        return _do_fork(&amp;args);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>顺着_do_fork的调用,一路跟下去, _do_fork ==&gt; copy_process ==&gt; copy_thread_tls.<br>创建一个新的task会调用copy_process,如果是用户态调用fork的场景,child task和parent task会共享同一片TLS空间;<br>如果是pthread_create创建线程的场景,会设置CLONE_SETTLS标记,该标记表明,已经为新创建的task分配的TLS空间,<br>则将地址空间保存到task_struct结构中,对应的值是从用户态通过参数一路传递下来的.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">int copy_thread_tls(unsigned long clone_flags, unsigned long stack_start,</span><br><span class="line">                unsigned long stk_sz, struct task_struct *p, unsigned long tls)</span><br><span class="line">&#123;</span><br><span class="line">        struct pt_regs *childregs &#x3D; task_pt_regs(p);</span><br><span class="line"></span><br><span class="line">        memset(&amp;p-&gt;thread.cpu_context, 0, sizeof(struct cpu_context));</span><br><span class="line"></span><br><span class="line">        &#x2F;*</span><br><span class="line">         * In case p was allocated the same task_struct pointer as some</span><br><span class="line">         * other recently-exited task, make sure p is disassociated from</span><br><span class="line">         * any cpu that may have run that now-exited task recently.</span><br><span class="line">         * Otherwise we could erroneously skip reloading the FPSIMD</span><br><span class="line">         * registers for p.</span><br><span class="line">         *&#x2F;</span><br><span class="line">        fpsimd_flush_task_state(p);</span><br><span class="line"></span><br><span class="line">        &#x2F;* 如果不是内核线程 *&#x2F;</span><br><span class="line">        if (likely(!(p-&gt;flags &amp; PF_KTHREAD))) &#123;</span><br><span class="line">                *childregs &#x3D; *current_pt_regs();</span><br><span class="line">                childregs-&gt;regs[0] &#x3D; 0;</span><br><span class="line"></span><br><span class="line">                &#x2F;*</span><br><span class="line">                 * Read the current TLS pointer from tpidr_el0 as it may be</span><br><span class="line">                 * out-of-sync with the saved value.</span><br><span class="line">                 *&#x2F;</span><br><span class="line">                *task_user_tls(p) &#x3D; read_sysreg(tpidr_el0);</span><br><span class="line"></span><br><span class="line">                if (stack_start) &#123;</span><br><span class="line">                        if (is_compat_thread(task_thread_info(p)))</span><br><span class="line">                                childregs-&gt;compat_sp &#x3D; stack_start;</span><br><span class="line">                        else</span><br><span class="line">                                childregs-&gt;sp &#x3D; stack_start;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                &#x2F;*</span><br><span class="line">                 * If a TLS pointer was passed to clone, use it for the new</span><br><span class="line">                 * thread.</span><br><span class="line">                 *&#x2F;</span><br><span class="line">                if (clone_flags &amp; CLONE_SETTLS)</span><br><span class="line">                        p-&gt;thread.uw.tp_value &#x3D; tls;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">                ......</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ......</span><br><span class="line"></span><br><span class="line">        return 0;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="context-switch"><a href="#context-switch" class="headerlink" title="context switch"></a>context switch</h3><p>在进程切换的时候,要将tpidr_el0寄存器中的值保存到prev task中,<br>然后将next task中的thread.uw.tp_value保存到tpidr_el0寄存器中.<br>调用路径如下:<br>context_switch ==&gt; switch_to ==&gt; __switch_to ==&gt; tls_thread_switch</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">static void tls_thread_switch(struct task_struct *next)</span><br><span class="line">&#123;</span><br><span class="line">        tls_preserve_current_state();</span><br><span class="line"></span><br><span class="line">        if (is_compat_thread(task_thread_info(next)))</span><br><span class="line">                write_sysreg(next-&gt;thread.uw.tp_value, tpidrro_el0);</span><br><span class="line">        else if (!arm64_kernel_unmapped_at_el0())</span><br><span class="line">                write_sysreg(0, tpidrro_el0);</span><br><span class="line"></span><br><span class="line">        write_sysreg(*task_user_tls(next), tpidr_el0);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="更多"><a href="#更多" class="headerlink" title="更多"></a>更多</h2><p>上面讲的内容主要是内核在TLS变量实现中所做的操作,主要是thread pointer寄存器的保存和恢复.<br>如果仅仅是讲到这里可能会让人意犹未尽,读者心里也许还有很多疑问.<br>下面会从两个方面概述一下TLS其他方面的知识, 之所以是概述,是因为这里面涉及的东西太多了,<br>包括链接,重定位,运行时库等, 其中任何一点如果要讲清楚的话都需要大量的篇幅.<br>我会下列举一些参考资料,有兴趣的读者可以进一步学习.</p>
+<h3 id="TLS变量的访问"><a href="#TLS变量的访问" class="headerlink" title="TLS变量的访问"></a>TLS变量的访问</h3><p>这部分讲的是如何通过一个变量名来访问本线程对应的变量,这里涉及到链接,重定位,运行时库等.</p>
+<p>使用__thread关键字时,经过编译后,生成的目标文件中会将__thread关键字修饰的变量放到目标文件的tdata或者tbss段中,<br>与data段和bss段类似, tdata中表示是已经初始化的变量, tbss表示是未初始化的变量.<br>这些段是作为init data来填充每个线程的TLS空间.</p>
+<p>对于每一个新创建的线程来说,他们的TLS空间中的数据都是一样的,都是用tdata段和tbss段来初始化的.<br>整体上来看init data和各个线程的TLS空间中的变量是同源多实体的关系, 来源都是init data, 线程的TLS空间是一个实体.</p>
+<p>知道了这些还不够,上面仅仅是初始化.<br>那么如何访问一个TLS变量呢?<br>假设,根据thread pointer register我们知道了TLS空间的基地址,那么如果我们知道了每个变量在TLS空间的offset,是不是就可以访问<br>TLS变量了.<br>编译器和ld.so确实是按照这个方法做的,但是要比上面说的复杂许多.</p>
+<p>glibc为每一个线程分配一个独立的TLS空间,TLS空间中包含多个block, 每一个block表示一个目标文件<br>中的TLS变量. 这些TLS变量由每个目标文件的tdata段和tbss段来填充,在访问变量的时候,先确定是哪个block,然后在确认在该block中的偏移就<br>OK了.<br>当然说的简单,实际实现过程中要考虑的东西很多,感兴趣的同学可以参考glibc代码.</p>
+<p>参考资料:<br><a target="_blank" rel="noopener" href="https://chao-tic.github.io/blog/2018/12/25/tls">A Deep dive into (implicit) Thread Local Storage</a></p>
+<h3 id="TLS空间分配模型"><a href="#TLS空间分配模型" class="headerlink" title="TLS空间分配模型"></a>TLS空间分配模型</h3><p>为什么要分成一个个block呢?<br>设想一下这种场景:<br>一个进程中有多个线程,在众多线程中有一个比较特殊,这个线程只访问一个目标文件中定义的局部变量,<br>那么是否有必要把其他目标文件的init data也拷贝到TLS区域中呢.这就涉及到下面要讲的TLS空间分配模型的问题.</p>
+<p>TLS空间的分配可能采用静态模型,也可能采用动态模型.<br>如果采用静态模型,则在线程创建的时候已经为每一个目标文件(block)指定了TLS空间中的位置.<br>动态模型在访问的时候会给目标文件在TLS空间中分配空间.<br>感兴趣的同学可以参考下面的资料.</p>
+<p>参考资料:<br><a target="_blank" rel="noopener" href="https://uclibc.org/docs/tls.pdf">ELF Handling For Thread-Local Storage</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/03/07/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%B8%80/" rel="prev" title="线程局部变量(一)">
+      <i class="fa fa-chevron-left"></i> 线程局部变量(一)
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/11/22/Hexo-How-To/" rel="next" title="Hexo How-To">
+      Hexo How-To <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%8B%E7%BB%8D"><span class="nav-number">1.</span> <span class="nav-text">介绍</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%94%A8%E6%88%B7%E6%80%81%E4%BD%BF%E7%94%A8"><span class="nav-number">2.</span> <span class="nav-text">用户态使用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%90"><span class="nav-number">3.</span> <span class="nav-text">代码分析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%B8%BB%E7%BA%BF%E7%A8%8Bthread-pointer%E5%AF%84%E5%AD%98%E5%99%A8%E7%9A%84%E8%B5%8B%E5%80%BC"><span class="nav-number">3.1.</span> <span class="nav-text">主线程thread pointer寄存器的赋值</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%9B%E5%BB%BA%E6%96%B0%E7%BA%BF%E7%A8%8B"><span class="nav-number">3.2.</span> <span class="nav-text">创建新线程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#context-switch"><span class="nav-number">3.3.</span> <span class="nav-text">context switch</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9B%B4%E5%A4%9A"><span class="nav-number">4.</span> <span class="nav-text">更多</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#TLS%E5%8F%98%E9%87%8F%E7%9A%84%E8%AE%BF%E9%97%AE"><span class="nav-number">4.1.</span> <span class="nav-text">TLS变量的访问</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#TLS%E7%A9%BA%E9%97%B4%E5%88%86%E9%85%8D%E6%A8%A1%E5%9E%8B"><span class="nav-number">4.2.</span> <span class="nav-text">TLS空间分配模型</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">The One</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">The One</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

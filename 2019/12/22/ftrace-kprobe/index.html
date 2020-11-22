@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="本文会介绍, 基于kprobe的内核调试方法文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https:&#x2F;&#x2F;theonecwd.github.io&#x2F;2019&#x2F;12&#x2F;22&#x2F;ftrace-kprobe&#x2F;#more  内核提供了一些调试内核的工具，本文介绍其中的一种调试方法，该方法通过ftrace的借口提供kprobe功能，通常情况下使用kprobe需要编写ko，并">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Kprobe-based Event Tracing">
+<meta property="og:url" content="http://yoursite.com/2019/12/22/ftrace-kprobe/index.html">
+<meta property="og:site_name" content="The One">
+<meta property="og:description" content="本文会介绍, 基于kprobe的内核调试方法文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:https:&#x2F;&#x2F;theonecwd.github.io&#x2F;2019&#x2F;12&#x2F;22&#x2F;ftrace-kprobe&#x2F;#more  内核提供了一些调试内核的工具，本文介绍其中的一种调试方法，该方法通过ftrace的借口提供kprobe功能，通常情况下使用kprobe需要编写ko，并">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2019-12-22T13:54:33.000Z">
+<meta property="article:modified_time" content="2020-11-22T07:44:11.781Z">
+<meta property="article:author" content="The One">
+<meta property="article:tag" content="kernel debug">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://yoursite.com/2019/12/22/ftrace-kprobe/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Kprobe-based Event Tracing | The One</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">The One</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/12/22/ftrace-kprobe/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="The One">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="The One">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Kprobe-based Event Tracing
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2019-12-22 21:54:33" itemprop="dateCreated datePublished" datetime="2019-12-22T21:54:33+08:00">2019-12-22</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2020-11-22 15:44:11" itemprop="dateModified" datetime="2020-11-22T15:44:11+08:00">2020-11-22</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>本文会介绍, 基于kprobe的内核调试方法<br>文章欢迎转载,但转载时请保留本段文字,并置于文章的顶部,作者:陈乐天,本文原文地址:<a target="_blank" rel="noopener" href="https://theonecwd.github.io/2019/12/22/ftrace-kprobe/#more">https://theonecwd.github.io/2019/12/22/ftrace-kprobe/#more</a></p>
+</blockquote>
+<p>内核提供了一些调试内核的工具，本文介绍其中的一种调试方法，该方法通过ftrace的借口提供kprobe功能，<br>通常情况下使用kprobe需要编写ko，并插入到内核来实现。有了ftrace的一些接口后，可以使操作变得简单。<br>本文来自内核文档，并在其基础上增加了一些内容，在下一篇文章中，将会举一些例子来进一步理解。</p>
+<h2 id="Kprobe-based-Event-Tracing"><a href="#Kprobe-based-Event-Tracing" class="headerlink" title="Kprobe-based Event Tracing"></a>Kprobe-based Event Tracing</h2><blockquote>
+<p>Author:    Masami Hiramatsu</p>
+</blockquote>
+<h3 id="Overview"><a href="#Overview" class="headerlink" title="Overview"></a>Overview</h3><p>These events are similar to tracepoint based events. Instead of Tracepoint, this is based on kprobes (kprobe and kretprobe).<br>So it can probe wherever kprobes can probe (this means,<br>all functions except those with __kprobes/nokprobe_inline annotation and those marked NOKPROBE_SYMBOL).<br>Unlike the Tracepoint based event, this can be added and removed dynamically, on the fly.</p>
+<p>To enable this feature, build your kernel with CONFIG_KPROBE_EVENTS=y.</p>
+<p>Similar to the events tracer, this doesn’t need to be activated via current_tracer. Instead of that,<br>add probe points via /sys/kernel/debug/tracing/kprobe_events,<br>and enable it via /sys/kernel/debug/tracing/events/kprobes/<EVENT>/enable.</p>
+<p>You can also use /sys/kernel/debug/tracing/dynamic_events instead of kprobe_events.<br>That interface will provide unified access to other dynamic events too.</p>
+<h3 id="Synopsis-of-kprobe-events"><a href="#Synopsis-of-kprobe-events" class="headerlink" title="Synopsis of kprobe_events"></a>Synopsis of kprobe_events</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"> p[:[GRP&#x2F;]EVENT] [MOD:]SYM[+offs]|MEMADDR [FETCHARGS]  : Set a probe</span><br><span class="line"> r[MAXACTIVE][:[GRP&#x2F;]EVENT] [MOD:]SYM[+0] [FETCHARGS]  : Set a return probe</span><br><span class="line"> -:[GRP&#x2F;]EVENT                                         : Clear a probe</span><br><span class="line"></span><br><span class="line">GRP            : Group name. If omitted, use &quot;kprobes&quot; for it.</span><br><span class="line">EVENT          : Event name. If omitted, the event name is generated</span><br><span class="line">                 based on SYM+offs or MEMADDR.</span><br><span class="line">MOD            : Module name which has given SYM.</span><br><span class="line">SYM[+offs]     : Symbol+offset where the probe is inserted.</span><br><span class="line">MEMADDR        : Address where the probe is inserted.</span><br><span class="line">MAXACTIVE      : Maximum number of instances of the specified function that</span><br><span class="line">                 can be probed simultaneously, or 0 for the default value</span><br><span class="line">                 as defined in Documentation&#x2F;kprobes.txt section 1.3.1.</span><br><span class="line"></span><br><span class="line">FETCHARGS      : Arguments. Each probe can have up to 128 args.</span><br><span class="line"> %REG          : Fetch register REG</span><br><span class="line"> @ADDR         : Fetch memory at ADDR (ADDR should be in kernel)</span><br><span class="line"> @SYM[+|-offs] : Fetch memory at SYM +|- offs (SYM should be a data symbol)</span><br><span class="line"> $stackN       : Fetch Nth entry of stack (N &gt;&#x3D; 0)</span><br><span class="line"> $stack        : Fetch stack address.</span><br><span class="line"> $argN         : Fetch the Nth function argument. (N &gt;&#x3D; 1) (\*1)</span><br><span class="line"> $retval       : Fetch return value.(\*2)</span><br><span class="line"> $comm         : Fetch current task comm.</span><br><span class="line"> +|-[u]OFFS(FETCHARG) : Fetch memory at FETCHARG +|- OFFS address.(\*3)(\*4)</span><br><span class="line"> \IMM          : Store an immediate value to the argument.</span><br><span class="line"> NAME&#x3D;FETCHARG : Set NAME as the argument name of FETCHARG.</span><br><span class="line"> FETCHARG:TYPE : Set TYPE as the type of FETCHARG. Currently, basic types</span><br><span class="line">                 (u8&#x2F;u16&#x2F;u32&#x2F;u64&#x2F;s8&#x2F;s16&#x2F;s32&#x2F;s64), hexadecimal types</span><br><span class="line">                 (x8&#x2F;x16&#x2F;x32&#x2F;x64), &quot;string&quot;, &quot;ustring&quot; and bitfield</span><br><span class="line">                 are supported.</span><br><span class="line"></span><br><span class="line"> (\*1) only for the probe on function entry (offs &#x3D;&#x3D; 0).</span><br><span class="line"> (\*2) only for return probe.</span><br><span class="line"> (\*3) this is useful for fetching a field of data structures.</span><br><span class="line"> (\*4) &quot;u&quot; means user-space dereference. See :ref:&#96;user_mem_access&#96;.</span><br></pre></td></tr></table></figure>
+
+<h3 id="Types"><a href="#Types" class="headerlink" title="Types"></a>Types</h3><p>Several types are supported for fetch-args. Kprobe tracer will access memory by given type.<br>Prefix ‘s’ and ‘u’ means those types are signed and unsigned respectively. ‘x’ prefix implies it is unsigned.<br>Traced arguments are shown in decimal (‘s’ and ‘u’) or hexadecimal (‘x’).<br>Without type casting, ‘x32’ or ‘x64’ is used depends on the architecture (e.g. x86-32 uses x32, and x86-64 uses x64).<br>These value types can be an array. To record array data, you can add ‘[N]’ (where N is a fixed number,<br>less than 64) to the base type. E.g. ‘x16[4]’ means an array of x16 (2bytes hex) with 4 elements.<br>Note that the array can be applied to memory type fetchargs,<br>you can not apply it to registers/stack-entries etc. (for example, ‘$stack1:x8[8]’ is wrong, but ‘+8($stack):x8[8]’ is OK.)<br>String type is a special type, which fetches a “null-terminated” string from kernel space.<br>This means it will fail and store NULL if the string container has been paged out. “ustring” type is an alternative of string<br>for user-space. See user_mem_access for more info.. The string array type is a bit different from other types.<br>For other base types, <base-type>[1] is equal to <base-type> (e.g. +0(%di):x32[1] is same as +0(%di):x32.)<br>But string[1] is not equal to string. The string type itself represents “char array”,<br>but string array type represents “char * array”. So, for example, +0(%di):string[1] is equal to +0(+0(%di)):string.<br>Bitfield is another special type, which takes 3 parameters, bit-width, bit- offset, and container-size (usually 32).<br>The syntax is:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">b&lt;bit-width&gt;@&lt;bit-offset&gt;&#x2F;&lt;container-size&gt;</span><br></pre></td></tr></table></figure>
+<p>Symbol type(‘symbol’) is an alias of u32 or u64 type (depends on BITS_PER_LONG)<br>which shows given pointer in “symbol+offset” style. For $comm, the default type is “string”; any other type is invalid.</p>
+<h3 id="User-Memory-Access"><a href="#User-Memory-Access" class="headerlink" title="User Memory Access"></a>User Memory Access</h3><p>Kprobe events supports user-space memory access.<br>For that purpose, you can use either user-space dereference syntax or ‘ustring’ type.</p>
+<p>The user-space dereference syntax allows you to access a field of a data structure in user-space.<br>This is done by adding the “u” prefix to the dereference syntax.<br>For example, +u4(%si) means it will read memory from the address in the register %si offset by 4,<br>and the memory is expected to be in user-space.<br>You can use this for strings too,<br>e.g. +u0(%si):string will read a string from the address in the register %si that is expected to be in user- space.<br>‘ustring’ is a shortcut way of performing the same task.<br>That is, +0(%si):ustring is equivalent to +u0(%si):string.</p>
+<p>Note that kprobe-event provides the user-memory access syntax but it doesn’t use it transparently.<br>This means if you use normal dereference or string type for user memory, it might fail, and may always fail on some archs.<br>The user has to carefully check if the target data is in kernel or user space.</p>
+<h3 id="Per-Probe-Event-Filtering"><a href="#Per-Probe-Event-Filtering" class="headerlink" title="Per-Probe Event Filtering"></a>Per-Probe Event Filtering</h3><p>Per-probe event filtering feature allows you to set different filter on each probe and<br>gives you what arguments will be shown in trace buffer.<br>If an event name is specified right after ‘p:’ or ‘r:’ in kprobe_events,<br>it adds an event under tracing/events/kprobes/<EVENT>,<br>at the directory you can see ‘id’, ‘enable’, ‘format’, ‘filter’ and ‘trigger’.</p>
+<p><strong>enable</strong>:<br>    You can enable/disable the probe by writing 1 or 0 on it.<br><strong>format</strong>:<br>    This shows the format of this probe event.<br><strong>filter</strong>:<br>    You can write filtering rules of this event.<br><strong>id</strong>:<br>    This shows the id of this probe event.<br><strong>trigger</strong>:<br>    This allows to install trigger commands which are executed when the event is hit<br>    (for details, see Documentation/trace/events.rst, section 6). </p>
+<h3 id="Event-Profiling"><a href="#Event-Profiling" class="headerlink" title="Event Profiling"></a>Event Profiling</h3><p>You can check the total number of probe hits and probe miss-hits via /sys/kernel/debug/tracing/kprobe_profile.<br>The first column is event name, the second is the number of probe hits, the third is the number of probe miss-hits.</p>
+<h3 id="Kernel-Boot-Parameter"><a href="#Kernel-Boot-Parameter" class="headerlink" title="Kernel Boot Parameter"></a>Kernel Boot Parameter</h3><p>You can add and enable new kprobe events when booting up the kernel by “kprobe_event=” parameter.<br>The parameter accepts a semicolon-delimited kprobe events, which format is similar to the kprobe_events.<br>The difference is that the probe definition parameters are comma-delimited instead of space.<br>For example, adding myprobe event on do_sys_open like below</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">p:myprobe do_sys_open dfd&#x3D;%ax filename&#x3D;%dx flags&#x3D;%cx mode&#x3D;+4($stack)</span><br></pre></td></tr></table></figure>
+
+<p>when specific parameter type</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">p:myprobe do_sys_open dfd&#x3D;%ax:u32 filename&#x3D;%dx flags&#x3D;%cx mode&#x3D;+4($stack)</span><br></pre></td></tr></table></figure>
+
+
+<p>should be below for kernel boot parameter (just replace spaces with comma)</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">p:myprobe,do_sys_open,dfd&#x3D;%ax,filename&#x3D;%dx,flags&#x3D;%cx,mode&#x3D;+4($stack)</span><br></pre></td></tr></table></figure>
+<h3 id="Usage-examples"><a href="#Usage-examples" class="headerlink" title="Usage examples"></a>Usage examples</h3><p>To add a probe as a new event, write a new definition to kprobe_events as below:</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo &#39;p:myprobe do_sys_open dfd&#x3D;%ax filename&#x3D;%dx flags&#x3D;%cx mode&#x3D;+4($stack)&#39; &gt; &#x2F;sys&#x2F;kernel&#x2F;debug&#x2F;tracing&#x2F;kprobe_events</span><br></pre></td></tr></table></figure>
+
+<p>This sets a kprobe on the top of do_sys_open() function with recording 1st to 4th arguments as “myprobe” event.<br>Note, which register/stack entry is assigned to each function argument depends on arch-specific ABI.<br>If you unsure the ABI, please try to use probe subcommand of perf-tools (you can find it under tools/perf/).<br>As this example shows, users can choose more familiar names for each arguments.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo &#39;r:myretprobe do_sys_open $retval&#39; &gt;&gt; &#x2F;sys&#x2F;kernel&#x2F;debug&#x2F;tracing&#x2F;kprobe_events</span><br></pre></td></tr></table></figure>
+
+<p>This sets a kretprobe on the return point of do_sys_open() function with recording return value as “myretprobe” event.<br>You can see the format of these events via /sys/kernel/debug/tracing/events/kprobes/<EVENT>/format.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">cat &#x2F;sys&#x2F;kernel&#x2F;debug&#x2F;tracing&#x2F;events&#x2F;kprobes&#x2F;myprobe&#x2F;format</span><br><span class="line">name: myprobe</span><br><span class="line">ID: 780</span><br><span class="line">format:</span><br><span class="line">        field:unsigned short common_type;       offset:0;       size:2; signed:0;</span><br><span class="line">        field:unsigned char common_flags;       offset:2;       size:1; signed:0;</span><br><span class="line">        field:unsigned char common_preempt_count;       offset:3; size:1;signed:0;</span><br><span class="line">        field:int common_pid;   offset:4;       size:4; signed:1;</span><br><span class="line"></span><br><span class="line">        field:unsigned long __probe_ip; offset:12;      size:4; signed:0;</span><br><span class="line">        field:int __probe_nargs;        offset:16;      size:4; signed:1;</span><br><span class="line">        field:unsigned long dfd;        offset:20;      size:4; signed:0;</span><br><span class="line">        field:unsigned long filename;   offset:24;      size:4; signed:0;</span><br><span class="line">        field:unsigned long flags;      offset:28;      size:4; signed:0;</span><br><span class="line">        field:unsigned long mode;       offset:32;      size:4; signed:0;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">print fmt: &quot;(%lx) dfd&#x3D;%lx filename&#x3D;%lx flags&#x3D;%lx mode&#x3D;%lx&quot;, REC-&gt;__probe_ip,</span><br><span class="line">REC-&gt;dfd, REC-&gt;filename, REC-&gt;flags, REC-&gt;mode</span><br></pre></td></tr></table></figure>
+
+<p>You can see that the event has 4 arguments as in the expressions you specified.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo &gt; &#x2F;sys&#x2F;kernel&#x2F;debug&#x2F;tracing&#x2F;kprobe_events</span><br></pre></td></tr></table></figure>
+
+<p>This clears all probe points.</p>
+<blockquote>
+<blockquote>
+<p>这里需要注意的是如果要删除event，需要先disable</p>
+</blockquote>
+</blockquote>
+<p>Or,</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">echo -:myprobe &gt;&gt; kprobe_events</span><br></pre></td></tr></table></figure>
+
+<p>This clears probe points selectively.</p>
+<p>Right after definition, each event is disabled by default. For tracing these events, you need to enable it.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">echo 1 &gt; &#x2F;sys&#x2F;kernel&#x2F;debug&#x2F;tracing&#x2F;events&#x2F;kprobes&#x2F;myprobe&#x2F;enable</span><br><span class="line">echo 1 &gt; &#x2F;sys&#x2F;kernel&#x2F;debug&#x2F;tracing&#x2F;events&#x2F;kprobes&#x2F;myretprobe&#x2F;enable</span><br></pre></td></tr></table></figure>
+<p>when disable</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">echo 0 &gt; &#x2F;sys&#x2F;kernel&#x2F;debug&#x2F;tracing&#x2F;events&#x2F;kprobes&#x2F;myprobe&#x2F;enable</span><br><span class="line">echo 0 &gt; &#x2F;sys&#x2F;kernel&#x2F;debug&#x2F;tracing&#x2F;events&#x2F;kprobes&#x2F;myretprobe&#x2F;enable</span><br></pre></td></tr></table></figure>
+
+<p>Use the following command to start tracing in an interval.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># echo 1 &gt; tracing_on</span><br><span class="line">Open something...</span><br><span class="line"># echo 0 &gt; tracing_on</span><br></pre></td></tr></table></figure>
+
+<p>And you can see the traced information via /sys/kernel/debug/tracing/trace.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">cat &#x2F;sys&#x2F;kernel&#x2F;debug&#x2F;tracing&#x2F;trace</span><br><span class="line"># tracer: nop</span><br><span class="line">#</span><br><span class="line">#           TASK-PID    CPU#    TIMESTAMP  FUNCTION</span><br><span class="line">#              | |       |          |         |</span><br><span class="line">           &lt;...&gt;-1447  [001] 1038282.286875: myprobe: (do_sys_open+0x0&#x2F;0xd6) dfd&#x3D;3 filename&#x3D;7fffd1ec4440 flags&#x3D;8000 mode&#x3D;0</span><br><span class="line">           &lt;...&gt;-1447  [001] 1038282.286878: myretprobe: (sys_openat+0xc&#x2F;0xe &lt;- do_sys_open) $retval&#x3D;fffffffffffffffe</span><br><span class="line">           &lt;...&gt;-1447  [001] 1038282.286885: myprobe: (do_sys_open+0x0&#x2F;0xd6) dfd&#x3D;ffffff9c filename&#x3D;40413c flags&#x3D;8000 mode&#x3D;1b6</span><br><span class="line">           &lt;...&gt;-1447  [001] 1038282.286915: myretprobe: (sys_open+0x1b&#x2F;0x1d &lt;- do_sys_open) $retval&#x3D;3</span><br><span class="line">           &lt;...&gt;-1447  [001] 1038282.286969: myprobe: (do_sys_open+0x0&#x2F;0xd6) dfd&#x3D;ffffff9c filename&#x3D;4041c6 flags&#x3D;98800 mode&#x3D;10</span><br><span class="line">           &lt;...&gt;-1447  [001] 1038282.286976: myretprobe: (sys_open+0x1b&#x2F;0x1d &lt;- do_sys_open) $retval&#x3D;3</span><br></pre></td></tr></table></figure>
+<p>Each line shows when the kernel hits an event, and &lt;- SYMBOL means kernel returns from SYMBOL<br>(e.g. “sys_open+0x1b/0x1d &lt;- do_sys_open” means kernel returns from do_sys_open to sys_open+0x1b).</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/kernel-debug/" rel="tag"># kernel debug</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2019/06/23/page-flags/" rel="prev" title="page-flags">
+      <i class="fa fa-chevron-left"></i> page-flags
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2020/03/07/%E7%BA%BF%E7%A8%8B%E5%B1%80%E9%83%A8%E5%8F%98%E9%87%8F-%E4%B8%80/" rel="next" title="线程局部变量(一)">
+      线程局部变量(一) <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Kprobe-based-Event-Tracing"><span class="nav-number">1.</span> <span class="nav-text">Kprobe-based Event Tracing</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Overview"><span class="nav-number">1.1.</span> <span class="nav-text">Overview</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Synopsis-of-kprobe-events"><span class="nav-number">1.2.</span> <span class="nav-text">Synopsis of kprobe_events</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Types"><span class="nav-number">1.3.</span> <span class="nav-text">Types</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#User-Memory-Access"><span class="nav-number">1.4.</span> <span class="nav-text">User Memory Access</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Per-Probe-Event-Filtering"><span class="nav-number">1.5.</span> <span class="nav-text">Per-Probe Event Filtering</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Event-Profiling"><span class="nav-number">1.6.</span> <span class="nav-text">Event Profiling</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Kernel-Boot-Parameter"><span class="nav-number">1.7.</span> <span class="nav-text">Kernel Boot Parameter</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Usage-examples"><span class="nav-number">1.8.</span> <span class="nav-text">Usage examples</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">The One</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">The One</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
